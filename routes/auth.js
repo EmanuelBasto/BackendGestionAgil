@@ -22,15 +22,13 @@ router.post('/register', async (req, res) => {
     if (estadoQ.rows.length === 0) return res.status(400).json({ message: 'Estado inválido' });
     const estado_id = estadoQ.rows[0].id;
 
-//nombre
-const result = await db.query(
-  `INSERT INTO users (matricula, email, nombre_completo, password, rol_id, estado_id)
-   VALUES ($1,$2,$3,$4,$5,$6)
-   RETURNING id, email, nombre_completo, rol_id`,
-  [matricula, email, nombre_completo, password, rol_id, estado_id]
-);
-
-
+    // Insertar usuario
+    const result = await db.query(
+      `INSERT INTO users (matricula, email, nombre_completo, password, rol_id, estado_id)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       RETURNING id, email, nombre_completo, rol_id`,
+      [matricula, email, nombre_completo, password, rol_id, estado_id]
+    );
 
     return res.status(201).json({ message: 'Usuario creado', user: result.rows[0] });
   } catch (err) {
@@ -45,30 +43,29 @@ router.post('/login', async (req, res) => {
 
   try {
     const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (result.rows.length === 0) return res.status(400).json({ message: 'Usuario no encontrado' });
-
     const user = result.rows[0];
+
+    if (!user) {
+      return res.status(400).json({ message: 'Correo no registrado' });
+    }
+
     if (user.password !== password) {
       return res.status(400).json({ message: 'Contraseña incorrecta' });
     }
 
-res.json({
-  message: 'Login exitoso',
-  usuario: {
-    id: user.id,
-    nombre_completo: user.nombre_completo,
-    email: user.email,
-    matricula: user.matricula,
-    rol_id: user.rol_id
-  }
-});
-
+    return res.status(200).json({
+      message: 'Login exitoso',
+      usuario: {
+        id: user.id,
+        nombre_completo: user.nombre_completo,
+        email: user.email,
+        matricula: user.matricula,
+        rol_id: user.rol_id
+      }
+    });
   } catch (err) {
-  if (err.code === '23505') {
-    return res.status(400).json({ message: 'La matrícula o el correo ya están registrados.' });
-  }
-  console.error(err);
-  return res.status(500).json({ message: 'Error en el servidor' });
+    console.error(err);
+    return res.status(500).json({ message: 'Error en el servidor' });
   }
 });
 
@@ -115,7 +112,7 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-// ----------------- Reset password (sin encriptar) -----------------
+// ----------------- Reset password -----------------
 router.post('/reset-password', async (req, res) => {
   try {
     const { token, password } = req.body;
@@ -144,3 +141,4 @@ router.post('/reset-password', async (req, res) => {
 });
 
 module.exports = router;
+
